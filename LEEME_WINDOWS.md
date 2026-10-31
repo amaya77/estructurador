@@ -1,0 +1,25 @@
+# Crear Estructurador.exe
+
+Estos pasos se realizan en un equipo con Windows de 64 bits.
+
+1. Instala Python 3.14 de 64 bits desde https://www.python.org/downloads/windows/.
+   Incluye el lanzador de Python y el componente Tcl/Tk de la instalacion.
+2. Extrae todo el ZIP en una carpeta de tu equipo.
+3. Haz doble clic en `CREAR_EXE_WINDOWS.bat`. Necesita internet para descargar
+   las dependencias. Ejecuta las pruebas y compila el programa.
+4. Espera el mensaje `Listo: dist\Estructurador.exe`.
+
+Para usarlo o compartirlo, copia solamente `dist\Estructurador.exe`.
+El equipo que lo utilice no necesita Python, un editor ni una instalacion del
+programa. El fondo y el icono estan incluidos dentro del ejecutable.
+
+Los resultados se guardan junto al Excel seleccionado, como en la version Python.
+La salida sigue siendo `.xlsx`, en partes de hasta 200.000 registros mas el
+encabezado. Los errores, incluidos los campos personalizados vacios, bloquean
+la generacion y se muestran en pantalla.
+
+Comprobacion antes de distribuir: abre el EXE, comprueba el fondo y el icono,
+convierte una base valida y revisa la salida. Prueba tambien una base con campos
+personalizados vacios para comprobar el reporte. La compilacion y el uso final
+deben verificarse en Windows; el ZIP contiene los archivos de compilacion,
+no un ejecutable ya compilado.

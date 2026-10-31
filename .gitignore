@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.venv-windows/
+build/
+dist/
+entrega_windows/
+.DS_Store
+# Bases de datos y resultados de conversion (no publicar datos de clientes).
+*.xlsx
+*.xls
+*.csv
+~$*
+# Credenciales y configuracion local.
+.env
+.env.*
+.aws/
