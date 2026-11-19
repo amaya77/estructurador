@@ -135,8 +135,12 @@ La imagen se ajusta al tamaño de la ventana; los textos se muestran en blanco
 y las tablas conservan su propio fondo para facilitar la lectura. Mantén
 `FONDO.png` y la carpeta `assets` al distribuir la aplicación.
 
-La barra de progreso indica la etapa actual. Durante el conteo, la lectura y
-la compresión muestra actividad sin porcentaje; la validación y preparación
-avanzan por registros. Al generar las partes, el avance corresponde a los
-registros escritos del lote y termina al guardar los archivos y la vista previa.
-El porcentaje es de la etapa indicada, no una estimación del tiempo restante.
+La interfaz muestra un porcentaje numérico de 0 a 100 % y la etapa actual, sin
+barra de progreso. El avance acumula lectura (0–10 %), validación (10–25 %),
+preparación (25–40 %), escritura y compresión (40–95 %) y finalización/vista
+previa (95–100 %). Los tramos medibles avanzan por registros procesados; durante
+la lectura y compresión puede mantenerse el mismo valor hasta terminar esa tarea.
+Los pesos de las etapas son orientativos, no una estimación del tiempo restante.
+El conteo inicial es una operación aparte: muestra 0 % mientras lee y 100 % al
+terminar. La conversión comienza nuevamente en 0 % y solo muestra 100 % al
+completar archivos y vista previa.

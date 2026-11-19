@@ -60,11 +60,10 @@ class Aplicacion:
         self.estado = tk.StringVar(value="Los resultados se guardan junto al archivo original.")
         tk.Label(marco, textvariable=self.estado, wraplength=850, justify="left", font=("Segoe UI", 10, "bold"), background="#202020", foreground="white").pack(anchor="w", padx=24)
 
+        self.porcentaje_actual = 0
         self.texto_progreso = tk.StringVar(value="")
         tk.Label(marco, textvariable=self.texto_progreso, background="#202020",
                  foreground="white", anchor="w").pack(fill="x", padx=24, pady=(8, 2))
-        self.barra_progreso = ttk.Progressbar(marco, maximum=100, mode="determinate")
-        self.barra_progreso.pack(fill="x", padx=(24, 64), pady=(0, 4))
 
         # Los errores se muestran en pantalla, sin generar un CSV.
         # Las pestañas permanecen ocultas hasta que hay un resultado que mostrar.
@@ -89,16 +88,10 @@ class Aplicacion:
         self.activar_scroll(self.tabla_previa)
 
     def mostrar_progreso(self, porcentaje, mensaje):
-        """La lectura indica actividad; las otras etapas informan avance real."""
-        if porcentaje is None:
-            if str(self.barra_progreso["mode"]) != "indeterminate":
-                self.barra_progreso.configure(mode="indeterminate", value=0)
-                self.barra_progreso.start(12)
-            self.texto_progreso.set(mensaje)
-        else:
-            self.barra_progreso.stop()
-            self.barra_progreso.configure(mode="determinate", value=porcentaje)
-            self.texto_progreso.set(f"{mensaje} ({porcentaje:.0f} % de esta etapa)" if mensaje else "")
+        """Presenta el porcentaje acumulado sin barra ni animaciones."""
+        if porcentaje is not None:
+            self.porcentaje_actual = porcentaje
+        self.texto_progreso.set(f"{self.porcentaje_actual:.0f} % · {mensaje}" if mensaje else "")
 
     def programar_fondo(self, evento):
         """Agrupa los cambios de tamaño para redibujar sin bloquear el arrastre."""
@@ -197,7 +190,7 @@ class Aplicacion:
             self.buscar.config(state="disabled")
             self.nueva.config(state="disabled")
             self.estado.set("Contando registros de la primera hoja…")
-            self.mostrar_progreso(None, "Leyendo y contando registros…")
+            self.mostrar_progreso(0, "Leyendo y contando registros…")
             self.limpiar_reporte("")
             resultados = queue.Queue()
             threading.Thread(target=self.contar_archivo, args=(seleccion, resultados), daemon=True).start()
@@ -250,7 +243,7 @@ class Aplicacion:
         self.nueva.config(state="disabled")
         self.buscar.config(state="disabled")
         self.procesar.config(state="disabled")
-        self.mostrar_progreso(None, "Leyendo archivo Excel…")
+        self.mostrar_progreso(0, "Leyendo archivo Excel…")
         self.avances = queue.Queue()
         self.estado.set("Validando archivo…")
         self.limpiar_reporte("Validando archivo…")
@@ -261,9 +254,9 @@ class Aplicacion:
 
     def trabajar(self):
         try:
-            salidas, errores = convertir(self.ruta, progreso=lambda valor, mensaje: self.avances.put((valor, mensaje)))
+            salidas, errores = convertir(self.ruta, progreso=lambda valor, mensaje: self.avances.put((min(valor, 98), mensaje)))
             if salidas:
-                self.avances.put((None, "Preparando vista previa…"))
+                self.avances.put((98, "Preparando vista previa…"))
             previa = leer_vista_previa(salidas[0].ruta) if salidas else None
             self.resultados.put((True, (salidas, errores, previa)))
         except Exception as error:
@@ -287,7 +280,7 @@ class Aplicacion:
         self.nueva.config(state="normal")
         self.procesar.config(state="normal")
         if not correcto:
-            self.mostrar_progreso(0, "Proceso interrumpido")
+            self.mostrar_progreso(None, "Proceso interrumpido")
             self.estado.set("No se pudo procesar el archivo.")
             self.resumen.set("No fue posible completar la validación.")
             self.tabla_errores.insert("", "end", values=("—", "—", "Archivo", resultado))
@@ -296,7 +289,7 @@ class Aplicacion:
             messagebox.showerror("Error", f"Revisa que el archivo sea válido y que tengas permiso para guardar en su carpeta.\n\nDetalle: {resultado}")
             return
         salidas, errores, previa = resultado
-        self.mostrar_progreso(100 if salidas else 0, "Proceso completado" if salidas else "Corrige los errores para continuar")
+        self.mostrar_progreso(100 if salidas else None, "Proceso completado" if salidas else "Corrige los errores para continuar")
         if salidas:
             total = sum(salida.registros for salida in salidas)
             self.estado.set(

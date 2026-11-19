@@ -276,21 +276,21 @@ def convertir(ruta, progreso=None):
     """Retorna (lista de ArchivoGenerado, errores). Todo error bloquea la salida."""
     ruta = Path(ruta)
     if progreso:
-        progreso(None, "Leyendo archivo Excel…")
+        progreso(0, "Leyendo archivo Excel…")
     filas = leer_excel(ruta)
     if progreso:
-        progreso(0, "Validando registros…")
-    errores = validar(filas, progreso=progreso)
+        progreso(10, "Validando registros…")
+    errores = validar(filas, progreso=(lambda valor, mensaje: progreso(10 + 15 * valor / 100, mensaje)) if progreso else None)
     if errores:
         return [], errores
 
     # Validar toda la base antes de guardar cualquier partición. No se permite
     # que openpyxl recorte silenciosamente una celda demasiado larga.
     if progreso:
-        progreso(0, "Preparando campos personalizados…")
+        progreso(25, "Preparando campos personalizados…")
     for i, fila in enumerate(iterar_consolidados(filas), start=2):
         if progreso and (i == 2 or i % 1000 == 0):
-            progreso(100 * (i - 2) / (len(filas) - 1), "Preparando campos personalizados…")
+            progreso(25 + 15 * (i - 2) / (len(filas) - 1), "Preparando campos personalizados…")
         for j, valor in enumerate(fila, start=1):
             if len(valor) > 32767:
                 errores.append(ErrorValidacion(
@@ -313,13 +313,14 @@ def convertir(ruta, progreso=None):
             temporal = Path(carpeta) / f"parte{indice}.xlsx"
             mensaje = f"Generando archivo {indice} de {len(cantidades)}"
             if progreso:
-                progreso(95 * completados / total, f"{mensaje}: 0 de {cantidad:,} registros")
+                progreso(40 + 55 * completados / total, f"{mensaje}: 0 de {cantidad:,} registros")
 
             def avance_escritura(numero):
                 if numero is None:
-                    progreso(None, f"Comprimiendo archivo {indice} de {len(cantidades)}…")
+                    progreso(40 + 55 * (completados + cantidad) / total,
+                             f"Comprimiendo archivo {indice} de {len(cantidades)}…")
                 else:
-                    progreso(95 * (completados + numero) / total,
+                    progreso(40 + 55 * (completados + numero) / total,
                              f"{mensaje}: {numero:,} de {cantidad:,} registros")
 
             contenido = chain([ENCABEZADOS_SALIDA], islice(registros, cantidad))
@@ -329,7 +330,7 @@ def convertir(ruta, progreso=None):
                 guardar_xlsx(temporal, contenido)
             completados += cantidad
             if progreso:
-                progreso(95 * completados / total, f"Archivo {indice} de {len(cantidades)} guardado")
+                progreso(40 + 55 * completados / total, f"Archivo {indice} de {len(cantidades)} guardado")
             temporales.append((temporal, cantidad, temporal.stat().st_size))
         salidas = []
         if progreso:

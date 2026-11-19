@@ -275,6 +275,20 @@ class ConversionTests(unittest.TestCase):
             self.assertEqual(guardar.call_count, 3)
             self.assertTrue(all(s.peso_bytes > referencia for s in salidas))
 
+    def test_porcentaje_en_texto_sin_barra(self):
+        from app import Aplicacion
+        from unittest.mock import Mock
+
+        app = Aplicacion.__new__(Aplicacion)
+        app.porcentaje_actual = 0
+        app.texto_progreso = Mock()
+        app.mostrar_progreso(45, "Generando archivos")
+        app.texto_progreso.set.assert_called_with("45 % · Generando archivos")
+        app.mostrar_progreso(None, "Proceso interrumpido")
+        app.texto_progreso.set.assert_called_with("45 % · Proceso interrumpido")
+        app.mostrar_progreso(0, "")
+        app.texto_progreso.set.assert_called_with("")
+
     def test_progreso_refleja_etapas_y_registros_escritos(self):
         with tempfile.TemporaryDirectory() as carpeta:
             origen = Path(carpeta) / "base.xlsx"
@@ -283,7 +297,9 @@ class ConversionTests(unittest.TestCase):
             salidas, errores = convertir(origen, progreso=lambda valor, mensaje: eventos.append((valor, mensaje)))
             self.assertFalse(errores)
             self.assertEqual(sum(s.registros for s in salidas), 2500)
-            self.assertIsNone(eventos[0][0])
+            self.assertEqual(eventos[0][0], 0)
+            porcentajes = [valor for valor, _ in eventos]
+            self.assertEqual(porcentajes, sorted(porcentajes))
             self.assertEqual(eventos[-1], (100, "Archivos generados"))
             for etapa in ("Validando", "Preparando", "Generando", "Comprimiendo", "Finalizando"):
                 self.assertTrue(any(etapa in mensaje for _, mensaje in eventos), etapa)
