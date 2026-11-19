@@ -137,10 +137,10 @@ class ConversionTests(unittest.TestCase):
                 self.assertTrue(errores)
                 self.assertEqual(list(Path(carpeta).iterdir()), [origen])
 
-    def test_limites_de_particion_y_resto(self):
-        for total, esperados in [(1, [1]), (200000, [200000]), (200001, [200000, 1]),
-                                 (250000, [200000, 50000]), (400000, [200000, 200000]),
-                                 (480000, [200000, 200000, 80000])]:
+    def test_cantidad_de_registros_no_limita_la_particion(self):
+        for total, esperados in [(1, [1]), (200000, [200000]), (200001, [200001]),
+                                 (250000, [250000]), (400000, [400000]),
+                                 (480000, [480000])]:
             with self.subTest(total=total), tempfile.TemporaryDirectory() as carpeta:
                 filas = [ENCABEZADOS] + [["CC", "1", "NIT", "2"]] * total
                 tamanos = []
@@ -163,10 +163,15 @@ class ConversionTests(unittest.TestCase):
                 [*ENCABEZADOS, "nombre"],
                 *[["CC", f"{i:05}", "NIT", "2", f"Persona {i}"] for i in range(5)],
             ])
-            with patch("validador.REGISTROS_POR_ARCHIVO", 2):
+            from validador import guardar_xlsx
+            muestra = Path(carpeta) / "muestra.xlsx"
+            guardar_xlsx(muestra, [[*ENCABEZADOS, "parameters"],
+                *[["CC", f"{i:05}", "NIT", "2", f"nombre:Persona {i}"] for i in range(2)]])
+            with patch("validador.PESO_MAXIMO_BYTES", muestra.stat().st_size):
                 salidas, errores = convertir(origen)
             self.assertEqual(errores, [])
-            self.assertEqual([s.registros for s in salidas], [2, 2, 1])
+            self.assertGreater(len(salidas), 1)
+            self.assertEqual(sum(s.registros for s in salidas), 5)
             registros = []
             for salida in salidas:
                 filas = [list(f) for f in leer_excel(salida.ruta)]
@@ -180,8 +185,7 @@ class ConversionTests(unittest.TestCase):
             origen = Path(carpeta) / "base.xlsx"
             self.crear_base(origen, [[*ENCABEZADOS, "nombre"],
                 ["CC", "1", "NIT", "2", "Ana"], ["CC", "3", "NIT", "2", None]])
-            with patch("validador.REGISTROS_POR_ARCHIVO", 1):
-                salidas, errores = convertir(origen)
+            salidas, errores = convertir(origen)
             self.assertFalse(salidas)
             self.assertTrue(errores)
             self.assertEqual(list(Path(carpeta).iterdir()), [origen])

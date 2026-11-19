@@ -15,7 +15,6 @@ ENCABEZADOS = (
     "companyDocumentNumber",
 )
 ENCABEZADOS_SALIDA = (*ENCABEZADOS, "parameters")
-REGISTROS_POR_ARCHIVO = 200_000
 # MB decimales: margen por debajo del límite de carga de 2 MB.
 PESO_MAXIMO_BYTES = 1_900_000
 
@@ -251,7 +250,7 @@ def convertir(ruta):
         return [], errores
 
     total = len(filas) - 1
-    registros = iterar_consolidados(filas)
+    registros = list(iterar_consolidados(filas))
     # Preparar el lote completo antes de colocar los archivos junto al origen.
     with TemporaryDirectory(prefix=".estructurador-", dir=ruta.parent) as carpeta:
         temporales = []
@@ -277,10 +276,8 @@ def convertir(ruta):
             return (guardar_parte(bloque, inicio, medio, fila_inicial)
                     and guardar_parte(bloque, medio, fin, fila_inicial))
 
-        for inicio in range(0, total, REGISTROS_POR_ARCHIVO):
-            bloque = list(islice(registros, REGISTROS_POR_ARCHIVO))
-            if not guardar_parte(bloque, 0, len(bloque), inicio + 2):
-                return [], errores
+        if not guardar_parte(registros, 0, total, 2):
+            return [], errores
         rutas = rutas_particiones(ruta, len(temporales))
         salidas = []
         for (temporal, cantidad, peso), destino in zip(temporales, rutas):

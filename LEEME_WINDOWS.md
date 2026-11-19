@@ -14,8 +14,8 @@ El equipo que lo utilice no necesita Python, un editor ni una instalacion del
 programa. El fondo y el icono estan incluidos dentro del ejecutable.
 
 Los resultados se guardan junto al Excel seleccionado, como en la version Python.
-La salida sigue siendo `.xlsx`, en partes de maximo 1,9 MB (1.900.000 bytes)
-y hasta 200.000 registros mas el encabezado. El peso se mide sobre cada archivo
+La salida sigue siendo `.xlsx`, en partes de maximo 1,9 MB (1.900.000 bytes),
+sin limite adicional de cantidad de registros. El peso se mide sobre cada archivo
 terminado y se muestra en la ventana. Los errores, incluidos los campos personalizados vacios, bloquean
 la generacion y se muestran en pantalla.
 
