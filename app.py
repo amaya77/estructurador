@@ -252,7 +252,8 @@ class Aplicacion:
                 for salida in salidas
             )
             self.resumen_previa.set(
-                f"{detalle}\nVista previa de {salidas[0].ruta.name}: primeros {len(filas) - 1} registros."
+                f"{detalle}\nReparto estimado por peso del original; el peso final de las partes puede variar."
+                f"\nVista previa de {salidas[0].ruta.name}: primeros {len(filas) - 1} registros."
             )
             self.panel_resultados.add(self.previsualizacion, text="Vista previa del archivo")
         # Los faltantes de etiquetas tienen su propia pestaña, independiente

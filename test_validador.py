@@ -150,7 +150,9 @@ class ConversionTests(unittest.TestCase):
                     tamanos.append(sum(1 for _ in contenido))
                     ruta.touch()
                 with patch("validador.leer_excel", return_value=filas), patch("validador.guardar_xlsx", side_effect=guardar):
-                    salidas, errores = convertir(Path(carpeta) / "base.xlsx")
+                    origen = Path(carpeta) / "base.xlsx"
+                    origen.touch()
+                    salidas, errores = convertir(origen)
                 self.assertEqual(errores, [])
                 self.assertEqual(tamanos, esperados)
                 self.assertEqual([s.registros for s in salidas], esperados)
@@ -163,11 +165,7 @@ class ConversionTests(unittest.TestCase):
                 [*ENCABEZADOS, "nombre"],
                 *[["CC", f"{i:05}", "NIT", "2", f"Persona {i}"] for i in range(5)],
             ])
-            from validador import guardar_xlsx
-            muestra = Path(carpeta) / "muestra.xlsx"
-            guardar_xlsx(muestra, [[*ENCABEZADOS, "parameters"],
-                *[["CC", f"{i:05}", "NIT", "2", f"nombre:Persona {i}"] for i in range(2)]])
-            with patch("validador.PESO_MAXIMO_BYTES", muestra.stat().st_size):
+            with patch("validador.PESO_REFERENCIA_BYTES", (origen.stat().st_size + 1) // 2):
                 salidas, errores = convertir(origen)
             self.assertEqual(errores, [])
             self.assertGreater(len(salidas), 1)
@@ -190,8 +188,7 @@ class ConversionTests(unittest.TestCase):
             self.assertTrue(errores)
             self.assertEqual(list(Path(carpeta).iterdir()), [origen])
 
-    def test_peso_real_maximo_sin_perder_registros_ni_sobrescribir(self):
-        from validador import PESO_MAXIMO_BYTES
+    def test_partes_estimadas_sin_perder_registros_ni_sobrescribir(self):
 
         aleatorio = random.Random(42)
         filas = [["CC", f"{i:08}", "NIT", "2",
@@ -207,7 +204,6 @@ class ConversionTests(unittest.TestCase):
             recuperados = []
             for i, salida in enumerate(salidas, 1):
                 self.assertEqual(salida.ruta.name, f"base estructurado{i}.xlsx")
-                self.assertLessEqual(salida.ruta.stat().st_size, PESO_MAXIMO_BYTES)
                 self.assertEqual(salida.peso_bytes, salida.ruta.stat().st_size)
                 contenido = leer_excel(salida.ruta)
                 self.assertEqual(tuple(contenido[0]), (*ENCABEZADOS, "parameters"))
@@ -222,37 +218,28 @@ class ConversionTests(unittest.TestCase):
             self.assertTrue(all("(2)" in s.ruta.name for s in nuevas))
             self.assertEqual([s.ruta.read_bytes() for s in salidas], contenidos)
 
-    def test_peso_limite_inclusivo_y_un_byte_de_exceso(self):
+    def test_formula_por_peso_redondeo_y_reparto_equilibrado(self):
+        from validador import repartir_registros
+        casos = [(1, 10, [10]), (1900000, 10, [10]),
+                 (1900001, 10, [5, 5]), (3800000, 11, [6, 5]),
+                 (3800001, 11, [4, 4, 3]), (5700000, 480000, [160000] * 3),
+                 (19000000, 2, [1, 1])]
+        for peso, total, esperado in casos:
+            with self.subTest(peso=peso, total=total):
+                self.assertEqual(repartir_registros(peso, total), esperado)
+
+    def test_escribe_cada_parte_una_vez_aunque_su_peso_final_exceda_referencia(self):
         from validador import guardar_xlsx
-
         with tempfile.TemporaryDirectory() as carpeta:
             origen = Path(carpeta) / "base.xlsx"
-            filas = [["CC", str(i), "NIT", "2"] for i in range(10)]
-            self.crear_base(origen, [ENCABEZADOS, *filas])
-            muestra = Path(carpeta) / "muestra.xlsx"
-            guardar_xlsx(muestra, [[*ENCABEZADOS, "parameters"], *[f + [""] for f in filas]])
-            peso = muestra.stat().st_size
-            with patch("validador.PESO_MAXIMO_BYTES", peso):
+            self.crear_base(origen, [ENCABEZADOS, *[["CC", str(i), "NIT", "2"] for i in range(11)]])
+            referencia = (origen.stat().st_size + 2) // 3
+            with patch("validador.PESO_REFERENCIA_BYTES", referencia), patch("validador.guardar_xlsx", wraps=guardar_xlsx) as guardar:
                 salidas, errores = convertir(origen)
             self.assertFalse(errores)
-            self.assertEqual(len(salidas), 1)
-            with patch("validador.PESO_MAXIMO_BYTES", peso - 1):
-                salidas, errores = convertir(origen)
-            self.assertFalse(errores)
-            self.assertGreater(len(salidas), 1)
-            self.assertEqual(sum(s.registros for s in salidas), 10)
-            self.assertTrue(all(s.peso_bytes <= peso - 1 for s in salidas))
-
-    def test_registro_que_no_cabe_bloquea_y_limpia_temporales(self):
-        with tempfile.TemporaryDirectory() as carpeta:
-            origen = Path(carpeta) / "base.xlsx"
-            self.crear_base(origen, [ENCABEZADOS, ["CC", "0001", "NIT", "2"]])
-            with patch("validador.PESO_MAXIMO_BYTES", 1):
-                salidas, errores = convertir(origen)
-            self.assertFalse(salidas)
-            self.assertEqual(errores[0].fila, 2)
-            self.assertIn("peso máximo", errores[0].motivo)
-            self.assertEqual(list(Path(carpeta).iterdir()), [origen])
+            self.assertEqual([s.registros for s in salidas], [4, 4, 3])
+            self.assertEqual(guardar.call_count, 3)
+            self.assertTrue(all(s.peso_bytes > referencia for s in salidas))
 
     def test_valores_que_parecen_formulas_se_guardan_como_texto(self):
         from validador import guardar_xlsx

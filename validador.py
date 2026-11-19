@@ -15,8 +15,8 @@ ENCABEZADOS = (
     "companyDocumentNumber",
 )
 ENCABEZADOS_SALIDA = (*ENCABEZADOS, "parameters")
-# MB decimales: margen por debajo del límite de carga de 2 MB.
-PESO_MAXIMO_BYTES = 1_900_000
+# MB decimales usados para estimar el número de archivos desde el original.
+PESO_REFERENCIA_BYTES = 1_900_000
 
 
 @dataclass(frozen=True)
@@ -229,6 +229,13 @@ def rutas_particiones(ruta, cantidad):
         intento += 1
 
 
+
+def repartir_registros(peso_bytes, total):
+    """Estima las partes por peso de origen y distribuye sin partes vacías."""
+    cantidad = min(total, max(1, (peso_bytes + PESO_REFERENCIA_BYTES - 1) // PESO_REFERENCIA_BYTES))
+    base, resto = divmod(total, cantidad)
+    return [base + (1 if indice < resto else 0) for indice in range(cantidad)]
+
 def convertir(ruta):
     """Retorna (lista de ArchivoGenerado, errores). Todo error bloquea la salida."""
     ruta = Path(ruta)
@@ -250,35 +257,19 @@ def convertir(ruta):
         return [], errores
 
     total = len(filas) - 1
-    registros = list(iterar_consolidados(filas))
+    cantidades = repartir_registros(ruta.stat().st_size, total)
+    rutas = rutas_particiones(ruta, len(cantidades))
+    registros = iterar_consolidados(filas)
+    # Cada parte se escribe una sola vez, sin reintentos por su peso final.
     # Preparar el lote completo antes de colocar los archivos junto al origen.
     with TemporaryDirectory(prefix=".estructurador-", dir=ruta.parent) as carpeta:
         temporales = []
-
-        def guardar_parte(bloque, inicio, fin, fila_inicial):
-            """Mide el XLSX cerrado y subdivide los bloques que excedan el peso."""
-            temporal = Path(carpeta) / f"parte{len(temporales) + 1}.xlsx"
+        for indice, cantidad in enumerate(cantidades, start=1):
+            temporal = Path(carpeta) / f"parte{indice}.xlsx"
             guardar_xlsx(temporal, chain(
-                [ENCABEZADOS_SALIDA], islice(bloque, inicio, fin),
+                [ENCABEZADOS_SALIDA], islice(registros, cantidad),
             ))
-            peso = temporal.stat().st_size
-            if peso <= PESO_MAXIMO_BYTES:
-                temporales.append((temporal, fin - inicio, peso))
-                return True
-            if fin - inicio == 1:
-                errores.append(ErrorValidacion(
-                    fila_inicial + inicio, 1, "Archivo",
-                    "Este registro, junto con el encabezado, supera el peso máximo "
-                    f"de {PESO_MAXIMO_BYTES:,} bytes por archivo. Reduce su contenido.",
-                ))
-                return False
-            medio = (inicio + fin) // 2
-            return (guardar_parte(bloque, inicio, medio, fila_inicial)
-                    and guardar_parte(bloque, medio, fin, fila_inicial))
-
-        if not guardar_parte(registros, 0, total, 2):
-            return [], errores
-        rutas = rutas_particiones(ruta, len(temporales))
+            temporales.append((temporal, cantidad, temporal.stat().st_size))
         salidas = []
         for (temporal, cantidad, peso), destino in zip(temporales, rutas):
             temporal.rename(destino)

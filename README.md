@@ -50,18 +50,24 @@ generación, igual que los errores de documentos y los límites de Excel.
 Al cargar otro archivo o volver a convertir, se limpia el reporte anterior.
 Si la estructura es incorrecta, primero se reportan
 los encabezados; al corregirlos se podrán validar los registros. Si todo es válido,
-se generan archivos `.xlsx` de **máximo 1,9 MB (1.900.000 bytes)**, incluido
-el encabezado y todos los componentes del archivo. La partición depende solo
-del peso, sin un límite de cantidad de registros. El tamaño se comprueba sobre cada XLSX terminado;
-si supera el máximo, el bloque se divide en mitades y se vuelven a guardar y medir
-las partes hasta que todas cumplan el límite de peso.
+se estima la cantidad de archivos a partir del peso del original:
+
+```text
+cantidad de archivos = redondear hacia arriba(peso en bytes / 1.900.000)
+```
+
+Los registros se reparten de forma equilibrada entre esas partes, conservando su
+orden. Por ejemplo, una base de 5,7 MB y 480.000 registros genera tres archivos de
+160.000 registros. Si hay un resto, las primeras partes reciben un registro más.
+Siempre se genera al menos una parte y nunca más partes que registros.
+
+Cada `.xlsx` se escribe una sola vez. **1,9 MB es una referencia para el cálculo,
+no un máximo garantizado del resultado**: la compresión, los encabezados y la
+consolidación pueden cambiar el peso final. No se vuelven a dividir las partes
+por su tamaño resultante. Tampoco existe un límite de 200.000 registros.
 
 Los nombres siguen siendo `base estructurado1.xlsx`, `base estructurado2.xlsx`,
-etc. La cantidad de archivos depende del peso de los datos y su compresión:
-una parte puede contener más de 200.000 registros si no supera 1,9 MB.
-Se conservan el orden, los documentos como texto y el encabezado en cada archivo.
-Si un registro individual no cabe junto al encabezado, se informa su fila y no
-se publica ninguna parte del lote.
+etc. Se conservan los documentos como texto y el encabezado en cada archivo.
 
 Las partes se guardan junto al original. Si ya existe una parte con el mismo
 nombre, el lote nuevo añade un sufijo común, como `base estructurado1 (2).xlsx`.

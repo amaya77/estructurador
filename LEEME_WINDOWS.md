@@ -14,10 +14,12 @@ El equipo que lo utilice no necesita Python, un editor ni una instalacion del
 programa. El fondo y el icono estan incluidos dentro del ejecutable.
 
 Los resultados se guardan junto al Excel seleccionado, como en la version Python.
-La salida sigue siendo `.xlsx`, en partes de maximo 1,9 MB (1.900.000 bytes),
-sin limite adicional de cantidad de registros. El peso se mide sobre cada archivo
-terminado y se muestra en la ventana. Los errores, incluidos los campos personalizados vacios, bloquean
-la generacion y se muestran en pantalla.
+La salida sigue siendo `.xlsx`. La cantidad de archivos se calcula dividiendo
+el peso del original entre 1.900.000 bytes y redondeando hacia arriba. Los registros
+se reparten equilibradamente, sin limite de 200.000 registros. Cada parte se
+escribe una sola vez. El peso final se muestra en pantalla y puede superar
+1,9 MB: es una estimacion, no un tope garantizado. Los errores, incluidos los
+campos personalizados vacios, bloquean la generacion y se muestran en pantalla.
 
 Comprobacion antes de distribuir: abre el EXE, comprueba el fondo y el icono,
 convierte una base valida y revisa la salida. Prueba tambien una base con campos
