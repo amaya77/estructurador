@@ -113,7 +113,7 @@ class ConversionTests(unittest.TestCase):
         from app import Aplicacion
 
         app = Aplicacion.__new__(Aplicacion)
-        for nombre in ("archivo", "buscar", "nueva", "procesar", "estado", "resumen"):
+        for nombre in ("archivo", "buscar", "nueva", "procesar", "estado", "resumen", "mostrar_progreso"):
             setattr(app, nombre, Mock())
         resultados = queue.Queue()
         resultados.put((True, 12345))
@@ -274,6 +274,31 @@ class ConversionTests(unittest.TestCase):
             self.assertEqual([s.registros for s in salidas], [4, 4, 3])
             self.assertEqual(guardar.call_count, 3)
             self.assertTrue(all(s.peso_bytes > referencia for s in salidas))
+
+    def test_progreso_refleja_etapas_y_registros_escritos(self):
+        with tempfile.TemporaryDirectory() as carpeta:
+            origen = Path(carpeta) / "base.xlsx"
+            self.crear_base(origen, [ENCABEZADOS, *[["CC", str(i), "NIT", "2"] for i in range(2500)]])
+            eventos = []
+            salidas, errores = convertir(origen, progreso=lambda valor, mensaje: eventos.append((valor, mensaje)))
+            self.assertFalse(errores)
+            self.assertEqual(sum(s.registros for s in salidas), 2500)
+            self.assertIsNone(eventos[0][0])
+            self.assertEqual(eventos[-1], (100, "Archivos generados"))
+            for etapa in ("Validando", "Preparando", "Generando", "Comprimiendo", "Finalizando"):
+                self.assertTrue(any(etapa in mensaje for _, mensaje in eventos), etapa)
+            self.assertTrue(any("1,000 de 2,500" in mensaje for _, mensaje in eventos))
+            self.assertTrue(all(valor is None or 0 <= valor <= 100 for valor, _ in eventos))
+
+    def test_progreso_no_indica_exito_si_la_validacion_falla(self):
+        with tempfile.TemporaryDirectory() as carpeta:
+            origen = Path(carpeta) / "base.xlsx"
+            self.crear_base(origen, [ENCABEZADOS, ["CC", "", "NIT", "2"]])
+            eventos = []
+            salidas, errores = convertir(origen, progreso=lambda valor, mensaje: eventos.append((valor, mensaje)))
+            self.assertFalse(salidas)
+            self.assertTrue(errores)
+            self.assertNotIn((100, "Archivos generados"), eventos)
 
     def test_valores_que_parecen_formulas_se_guardan_como_texto(self):
         from validador import guardar_xlsx

@@ -134,3 +134,9 @@ La ventana usa `FONDO.png`, ubicado junto a `app.py`, como imagen de fondo.
 La imagen se ajusta al tamaño de la ventana; los textos se muestran en blanco
 y las tablas conservan su propio fondo para facilitar la lectura. Mantén
 `FONDO.png` y la carpeta `assets` al distribuir la aplicación.
+
+La barra de progreso indica la etapa actual. Durante el conteo, la lectura y
+la compresión muestra actividad sin porcentaje; la validación y preparación
+avanzan por registros. Al generar las partes, el avance corresponde a los
+registros escritos del lote y termina al guardar los archivos y la vista previa.
+El porcentaje es de la etapa indicada, no una estimación del tiempo restante.

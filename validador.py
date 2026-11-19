@@ -154,7 +154,7 @@ def consolidar_etiquetas(filas):
     return [list(ENCABEZADOS_SALIDA), *iterar_consolidados(filas)]
 
 
-def validar(filas):
+def validar(filas, progreso=None):
     """Devuelve todos los errores, usando filas y columnas de Excel (desde 1)."""
     errores = []
     if not filas:
@@ -203,6 +203,8 @@ def validar(filas):
             ))
 
     for numero_fila, fila in enumerate(islice(filas, 1, None), start=2):
+        if progreso and (numero_fila == 2 or numero_fila % 1000 == 0):
+            progreso(100 * (numero_fila - 2) / (len(filas) - 1), "Validando registros…")
         for indice, campo in enumerate(ENCABEZADOS):
             valor = texto(fila[indice] if indice < len(fila) else None)
             if not valor:
@@ -227,14 +229,14 @@ def validar(filas):
     return errores
 
 
-def guardar_xlsx(ruta, filas):
+def guardar_xlsx(ruta, filas, progreso=None):
     """Escribe secuencialmente un XLSX con valores de texto y sin fórmulas."""
     from openpyxl import Workbook
     from openpyxl.cell import WriteOnlyCell
 
     libro = Workbook(write_only=True)
     hoja = libro.create_sheet("Estructurado")
-    for fila in filas:
+    for numero, fila in enumerate(filas):
         celdas = []
         for valor in fila:
             celda = WriteOnlyCell(hoja, value=texto(valor))
@@ -243,6 +245,10 @@ def guardar_xlsx(ruta, filas):
             celda.number_format = "@"
             celdas.append(celda)
         hoja.append(celdas)
+        if progreso and numero and numero % 1000 == 0:
+            progreso(numero)
+    if progreso:
+        progreso(None)
     libro.save(ruta)
     libro.close()
 
@@ -266,17 +272,25 @@ def repartir_registros(peso_bytes, total):
     base, resto = divmod(total, cantidad)
     return [base + (1 if indice < resto else 0) for indice in range(cantidad)]
 
-def convertir(ruta):
+def convertir(ruta, progreso=None):
     """Retorna (lista de ArchivoGenerado, errores). Todo error bloquea la salida."""
     ruta = Path(ruta)
+    if progreso:
+        progreso(None, "Leyendo archivo Excel…")
     filas = leer_excel(ruta)
-    errores = validar(filas)
+    if progreso:
+        progreso(0, "Validando registros…")
+    errores = validar(filas, progreso=progreso)
     if errores:
         return [], errores
 
     # Validar toda la base antes de guardar cualquier partición. No se permite
     # que openpyxl recorte silenciosamente una celda demasiado larga.
+    if progreso:
+        progreso(0, "Preparando campos personalizados…")
     for i, fila in enumerate(iterar_consolidados(filas), start=2):
+        if progreso and (i == 2 or i % 1000 == 0):
+            progreso(100 * (i - 2) / (len(filas) - 1), "Preparando campos personalizados…")
         for j, valor in enumerate(fila, start=1):
             if len(valor) > 32767:
                 errores.append(ErrorValidacion(
@@ -294,14 +308,35 @@ def convertir(ruta):
     # Preparar el lote completo antes de colocar los archivos junto al origen.
     with TemporaryDirectory(prefix=".estructurador-", dir=ruta.parent) as carpeta:
         temporales = []
+        completados = 0
         for indice, cantidad in enumerate(cantidades, start=1):
             temporal = Path(carpeta) / f"parte{indice}.xlsx"
-            guardar_xlsx(temporal, chain(
-                [ENCABEZADOS_SALIDA], islice(registros, cantidad),
-            ))
+            mensaje = f"Generando archivo {indice} de {len(cantidades)}"
+            if progreso:
+                progreso(95 * completados / total, f"{mensaje}: 0 de {cantidad:,} registros")
+
+            def avance_escritura(numero):
+                if numero is None:
+                    progreso(None, f"Comprimiendo archivo {indice} de {len(cantidades)}…")
+                else:
+                    progreso(95 * (completados + numero) / total,
+                             f"{mensaje}: {numero:,} de {cantidad:,} registros")
+
+            contenido = chain([ENCABEZADOS_SALIDA], islice(registros, cantidad))
+            if progreso:
+                guardar_xlsx(temporal, contenido, progreso=avance_escritura)
+            else:
+                guardar_xlsx(temporal, contenido)
+            completados += cantidad
+            if progreso:
+                progreso(95 * completados / total, f"Archivo {indice} de {len(cantidades)} guardado")
             temporales.append((temporal, cantidad, temporal.stat().st_size))
         salidas = []
+        if progreso:
+            progreso(95, "Finalizando archivos…")
         for (temporal, cantidad, peso), destino in zip(temporales, rutas):
             temporal.rename(destino)
             salidas.append(ArchivoGenerado(destino, cantidad, peso))
+    if progreso:
+        progreso(100, "Archivos generados")
     return salidas, []
