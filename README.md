@@ -47,14 +47,18 @@ generación, igual que los errores de documentos y los límites de Excel.
 Al cargar otro archivo o volver a convertir, se limpia el reporte anterior.
 Si la estructura es incorrecta, primero se reportan
 los encabezados; al corregirlos se podrán validar los registros. Si todo es válido,
-se generan archivos `.xlsx` con hasta **200.000 registros de datos por archivo**,
-más su encabezado. Conservan el orden original. Por ejemplo, para `base.xlsx`:
+se generan archivos `.xlsx` de **máximo 1,9 MB (1.900.000 bytes)**, incluido
+el encabezado y todos los componentes del archivo. También se conserva el límite
+de 200.000 registros por parte. El tamaño se comprueba sobre cada XLSX terminado;
+si supera el máximo, el bloque se divide en mitades y se vuelven a guardar y medir
+las partes hasta que todas cumplan ambos límites.
 
-- 250.000 registros: `base estructurado1.xlsx` (200.000) y
-  `base estructurado2.xlsx` (50.000).
-- 480.000 registros: `base estructurado1.xlsx` (200.000),
-  `base estructurado2.xlsx` (200.000) y `base estructurado3.xlsx` (80.000).
-- Hasta 200.000 registros: un archivo `base estructurado1.xlsx`.
+Los nombres siguen siendo `base estructurado1.xlsx`, `base estructurado2.xlsx`,
+etc. La cantidad de archivos depende del peso de los datos y su compresión:
+incluso una base de menos de 200.000 registros puede producir varias partes.
+Se conservan el orden, los documentos como texto y el encabezado en cada archivo.
+Si un registro individual no cabe junto al encabezado, se informa su fila y no
+se publica ninguna parte del lote.
 
 Las partes se guardan junto al original. Si ya existe una parte con el mismo
 nombre, el lote nuevo añade un sufijo común, como `base estructurado1 (2).xlsx`.
@@ -62,7 +66,7 @@ Se valida toda la base antes de escribir las partes: un error en cualquier
 registro bloquea el lote completo. Se usa `.xlsx` porque `.xls` no admite
 200.000 registros por archivo.
 
-La ventana muestra los nombres y cantidades de todas las partes y una vista
+La ventana muestra los nombres, cantidades y pesos en MB de todas las partes y una vista
 previa de los primeros diez registros de la primera parte, con las cinco
 columnas resultantes. Los campos personalizados vacíos aparecen en la pestaña
 **Etiquetas faltantes** y bloquean la generación. Los problemas de documentos, estructura o

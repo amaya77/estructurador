@@ -14,8 +14,9 @@ El equipo que lo utilice no necesita Python, un editor ni una instalacion del
 programa. El fondo y el icono estan incluidos dentro del ejecutable.
 
 Los resultados se guardan junto al Excel seleccionado, como en la version Python.
-La salida sigue siendo `.xlsx`, en partes de hasta 200.000 registros mas el
-encabezado. Los errores, incluidos los campos personalizados vacios, bloquean
+La salida sigue siendo `.xlsx`, en partes de maximo 1,9 MB (1.900.000 bytes)
+y hasta 200.000 registros mas el encabezado. El peso se mide sobre cada archivo
+terminado y se muestra en la ventana. Los errores, incluidos los campos personalizados vacios, bloquean
 la generacion y se muestran en pantalla.
 
 Comprobacion antes de distribuir: abre el EXE, comprueba el fondo y el icono,
@@ -23,3 +24,7 @@ convierte una base valida y revisa la salida. Prueba tambien una base con campos
 personalizados vacios para comprobar el reporte. La compilacion y el uso final
 deben verificarse en Windows; el ZIP contiene los archivos de compilacion,
 no un ejecutable ya compilado.
+
+Para incorporar este cambio a un ejecutable anterior, vuelve a ejecutar
+`CREAR_EXE_WINDOWS.bat` con estos archivos actualizados y distribuye el nuevo
+`dist\Estructurador.exe`. El EXE anterior no se actualiza automaticamente.

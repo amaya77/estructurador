@@ -241,7 +241,10 @@ class Aplicacion:
             for fila in filas[1:]:
                 self.tabla_previa.insert("", "end", values=fila)
             self.ajustar_anchos(self.tabla_previa)
-            detalle = "\n".join(f"{salida.ruta.name}: {salida.registros:,} registros" for salida in salidas)
+            detalle = "\n".join(
+                f"{salida.ruta.name}: {salida.registros:,} registros · {salida.peso_bytes / 1_000_000:.2f} MB"
+                for salida in salidas
+            )
             self.resumen_previa.set(
                 f"{detalle}\nVista previa de {salidas[0].ruta.name}: primeros {len(filas) - 1} registros."
             )
