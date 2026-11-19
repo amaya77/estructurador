@@ -165,8 +165,14 @@ class Aplicacion:
     def seleccionar(self):
         ruta = filedialog.askopenfilename(title="Selecciona un Excel", filetypes=[("Archivos Excel", "*.xlsx *.xls")])
         if ruta:
-            self.ruta = Path(ruta)
-            self.archivo.set(str(self.ruta))
+            seleccion = Path(ruta)
+            try:
+                peso = seleccion.stat().st_size
+            except OSError as error:
+                messagebox.showerror("Error", f"No se pudo acceder al archivo seleccionado.\n\nDetalle: {error}")
+                return
+            self.ruta = seleccion
+            self.archivo.set(f"{self.ruta}\nPeso del archivo: {peso / 1_000_000:.2f} MB ({peso:,} bytes)")
             self.procesar.config(state="normal")
             self.estado.set("Listo para validar y convertir.")
             self.limpiar_reporte("Pulsa Convertir para validar el archivo seleccionado.")
