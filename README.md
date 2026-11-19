@@ -25,7 +25,10 @@ python app.py
 ```
 
 Selecciona un archivo `.xlsx` o `.xls` y pulsa **Convertir**.
-Al seleccionarlo, la ventana muestra su peso en MB y en bytes junto a la ruta.
+Al seleccionarlo, la ventana muestra su peso en MB y en bytes junto a la ruta
+y cuenta los registros de la primera hoja en segundo plano. El conteo excluye
+el encabezado y las filas vacías del final; incluye las vacías intermedias que
+deben validarse. El botón Convertir se habilita al terminar la lectura.
 Este es el peso del archivo de origen; las partes generadas se miden por separado.
 El archivo debe tener
 los títulos en la fila 1 de la primera hoja, en este orden:

@@ -91,6 +91,36 @@ def leer_excel(ruta):
     return filas
 
 
+def contar_registros(ruta):
+    """Cuenta la primera hoja sin encabezado ni filas vacías del final."""
+    ruta = Path(ruta)
+    if ruta.suffix.lower() == ".xlsx":
+        from openpyxl import load_workbook
+
+        libro = load_workbook(ruta, read_only=True, data_only=False)
+        try:
+            ultima = 0
+            for numero, fila in enumerate(libro.worksheets[0].iter_rows(values_only=True), start=1):
+                if any(texto(valor) for valor in fila):
+                    ultima = numero
+            return max(0, ultima - 1)
+        finally:
+            libro.close()
+    if ruta.suffix.lower() == ".xls":
+        import xlrd
+
+        libro = xlrd.open_workbook(str(ruta), on_demand=True)
+        try:
+            hoja = libro.sheet_by_index(0)
+            for indice in range(hoja.nrows - 1, 0, -1):
+                if any(texto(valor) for valor in hoja.row_values(indice)):
+                    return indice
+            return 0
+        finally:
+            libro.release_resources()
+    raise ValueError("Selecciona un archivo .xlsx o .xls.")
+
+
 def cantidad_etiquetas(filas):
     """Cuenta desde E hasta la última columna con encabezado o datos.
 

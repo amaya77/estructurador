@@ -10,7 +10,7 @@ from tkinter import font as tkfont
 
 from PIL import Image, ImageTk
 
-from validador import convertir
+from validador import contar_registros, convertir
 
 
 def leer_vista_previa(ruta):
@@ -172,10 +172,42 @@ class Aplicacion:
                 messagebox.showerror("Error", f"No se pudo acceder al archivo seleccionado.\n\nDetalle: {error}")
                 return
             self.ruta = seleccion
-            self.archivo.set(f"{self.ruta}\nPeso del archivo: {peso / 1_000_000:.2f} MB ({peso:,} bytes)")
-            self.procesar.config(state="normal")
-            self.estado.set("Listo para validar y convertir.")
-            self.limpiar_reporte("Pulsa Convertir para validar el archivo seleccionado.")
+            self.archivo.set(f"{self.ruta}\nPeso del archivo: {peso / 1_000_000:.2f} MB ({peso:,} bytes)\nRegistros: contando…")
+            self.procesar.config(state="disabled")
+            self.buscar.config(state="disabled")
+            self.nueva.config(state="disabled")
+            self.estado.set("Contando registros de la primera hoja…")
+            self.limpiar_reporte("")
+            resultados = queue.Queue()
+            threading.Thread(target=self.contar_archivo, args=(seleccion, resultados), daemon=True).start()
+            self.ventana.after(100, self.recibir_conteo, seleccion, peso, resultados)
+
+    @staticmethod
+    def contar_archivo(ruta, resultados):
+        try:
+            resultados.put((True, contar_registros(ruta)))
+        except Exception as error:
+            resultados.put((False, str(error)))
+
+    def recibir_conteo(self, ruta, peso, resultados):
+        """Actualiza los controles solo desde el hilo principal de Tk."""
+        try:
+            correcto, resultado = resultados.get_nowait()
+        except queue.Empty:
+            self.ventana.after(100, self.recibir_conteo, ruta, peso, resultados)
+            return
+        self.buscar.config(state="normal")
+        self.nueva.config(state="normal")
+        detalle = f"{ruta}\nPeso del archivo: {peso / 1_000_000:.2f} MB ({peso:,} bytes)"
+        if not correcto:
+            self.archivo.set(f"{detalle}\nRegistros: no disponibles")
+            self.estado.set("No se pudo leer el archivo. Selecciona un Excel válido.")
+            messagebox.showerror("Error", f"No se pudo contar los registros.\n\nDetalle: {resultado}")
+            return
+        self.archivo.set(f"{detalle}\nRegistros: {resultado:,} (sin encabezado)")
+        self.procesar.config(state="normal")
+        self.estado.set("Listo para validar y convertir.")
+        self.resumen.set("Pulsa Convertir para validar el archivo seleccionado.")
 
     def limpiar_reporte(self, mensaje):
         """Limpia y oculta los resultados anteriores al comenzar otro flujo."""

@@ -95,6 +95,40 @@ class ConversionTests(unittest.TestCase):
         libro.save(ruta)
         libro.close()
 
+    def test_conteo_sin_encabezado_ignora_final_vacio_y_conserva_huecos(self):
+        from validador import contar_registros
+        casos = [([], 0), ([ENCABEZADOS], 0),
+                 ([ENCABEZADOS, ["CC", "1", "NIT", "2"], [None] * 4,
+                   ["CC", "0", "NIT", "0"], [None] * 4, [" "] * 4], 3)]
+        for filas, esperado in casos:
+            with self.subTest(esperado=esperado), tempfile.TemporaryDirectory() as carpeta:
+                ruta = Path(carpeta) / "base.xlsx"
+                self.crear_base(ruta, filas)
+                self.assertEqual(contar_registros(ruta), esperado)
+                self.assertEqual(contar_registros(ruta), max(0, len(leer_excel(ruta)) - 1))
+
+    def test_conteo_actualiza_interfaz_y_maneja_archivo_invalido(self):
+        import queue
+        from unittest.mock import Mock
+        from app import Aplicacion
+
+        app = Aplicacion.__new__(Aplicacion)
+        for nombre in ("archivo", "buscar", "nueva", "procesar", "estado", "resumen"):
+            setattr(app, nombre, Mock())
+        resultados = queue.Queue()
+        resultados.put((True, 12345))
+        app.recibir_conteo(Path("base.xlsx"), 1500000, resultados)
+        self.assertIn("12,345 (sin encabezado)", app.archivo.set.call_args.args[0])
+        self.assertIn("1.50 MB", app.archivo.set.call_args.args[0])
+        app.procesar.config.assert_called_with(state="normal")
+        app.procesar.reset_mock()
+        resultados.put((False, "Archivo corrupto"))
+        with patch("app.messagebox.showerror") as mostrar:
+            app.recibir_conteo(Path("base.xlsx"), 100, resultados)
+        mostrar.assert_called_once()
+        app.procesar.config.assert_not_called()
+        self.assertIn("no disponibles", app.archivo.set.call_args.args[0])
+
     def test_conversion_texto_vista_previa_y_nombres_sin_sobrescribir(self):
         from app import leer_vista_previa
 
